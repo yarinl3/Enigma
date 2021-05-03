@@ -5,21 +5,33 @@ global canvas_lines, letters_buttons1, letters_buttons2
 canvas_lines, letters_buttons1, letters_buttons2 = [], [], []
 
 
-def foo(i, rotor_a):
-    num = ord(i) - 97 + rotor_a
-    if num > 25:
-        num -= 26
-    return num
+def get_defaults():
+    rotor1 = ['k', 'y', 'p', 'j', 't', 'x', 'r', 'b', 'w', 'o', 'g', 'i', 'l', 'h', 'n', 'q', 'f', 'd', 'v', 'e', 'c',
+              'z', 'u', 'a', 'm', 's']
+    rotor2 = ['m', 'v', 'k', 'e', 'o', 'x', 'd', 't', 'c', 'y', 'j', 'a', 'g', 'z', 'f', 'l', 'q', 'n', 'i', 'r', 'w',
+              'h', 'p', 'u', 'b', 's']
+    rotor3 = ['n', 'b', 'g', 's', 'z', 'f', 'c', 'j', 'y', 'r', 'l', 'q', 'u', 'd', 'p', 'o', 't', 'k', 'e', 'v', 'w',
+              'a', 'm', 'i', 'x', 'h']
+    reflector1 = [('r', 'k'), ('y', 'd'), ('c', 'u'), ('z', 'i'), ('e', 'n'), ('s', 'h'), ('g', 'a'), ('m', 'l'),
+        ('o', 'p'), ('f', 'b'), ('t', 'j'), ('v', 'x'), ('w', 'q')]
+    return rotor1, rotor2, rotor3, reflector1
 
 
-def reflector(rotor, rotor_a, char):
-    num = rotor.index(char) + rotor_a
-    if num > 25:
-        num -= 26
-    return chr(num + 97)
+def fix_offset(letter, first_position):
+    new_position = ord(letter) - 97 + first_position
+    if new_position > 25:
+        new_position -= 26
+    return new_position
 
 
-def ref_pairs(pairs, char):
+def reflector(rotor, first_position, letter):
+    new_position = rotor.index(letter) + first_position
+    if new_position > 25:
+        new_position -= 26
+    return chr(new_position + 97)
+
+
+def find_pair(pairs, char):
     for pair in pairs:
         if char == pair[0]:
             return pair[1]
@@ -27,68 +39,63 @@ def ref_pairs(pairs, char):
             return pair[0]
 
 
-def encrypt(key, text):
+def encrypt(settings, text):
     new_text = []
-    for pair in key[2]:
-        text = text.replace(pair[0], '*')
-        text = text.replace(pair[1], pair[0])
-        text = text.replace('*', pair[1])
-
-    key[0] = key[0].lower()
-    rotor1 = ['k', 'y', 'p', 'j', 't', 'x', 'r', 'b', 'w', 'o', 'g', 'i', 'l', 'h', 'n', 'q', 'f', 'd', 'v', 'e', 'c',
-              'z', 'u', 'a', 'm', 's']
-    rotor2 = ['m', 'v', 'k', 'e', 'o', 'x', 'd', 't', 'c', 'y', 'j', 'a', 'g', 'z', 'f', 'l', 'q', 'n', 'i', 'r', 'w',
-              'h', 'p', 'u', 'b', 's']
-    rotor3 = ['n', 'b', 'g', 's', 'z', 'f', 'c', 'j', 'y', 'r', 'l', 'q', 'u', 'd', 'p', 'o', 't', 'k', 'e', 'v', 'w',
-              'a', 'm', 'i', 'x', 'h']
-    reflector_pairs = [('r', 'k'), ('y', 'd'), ('c', 'u'), ('z', 'i'), ('e', 'n'), ('s', 'h'), ('g', 'a'), ('m', 'l'),
-                       ('o', 'p'), ('f', 'b'), ('t', 'j'), ('v', 'x'), ('w', 'q')]
+    first_position, rotors_order, cables = settings
+    for cable in cables:
+        text = text.replace(cable[0], '*')
+        text = text.replace(cable[1], cable[0])
+        text = text.replace('*', cable[1])
+    first_position = first_position.lower()
+    rotor1, rotor2, rotor3, reflector_pairs = get_defaults()
     rotors = [rotor1, rotor2, rotor3]
-    rotors = [rotors[key[1][0] - 1], rotors[key[1][1] - 1], rotors[key[1][2] - 1]]
-    rotor1_a, rotor2_a, rotor3_a = ord(key[0][0]) - 97, ord(key[0][1]) - 97, ord(key[0][2]) - 97
+    rotors = [rotors[rotors_order[0] - 1], rotors[rotors_order[1] - 1], rotors[rotors_order[2] - 1]]
+    rotor1_first_position = ord(first_position[0]) - 97
+    rotor2_first_position = ord(first_position[1]) - 97
+    rotor3_first_position = ord(first_position[2]) - 97
     for inx, val in enumerate(text):
-        first = rotors[0][foo(val, rotor1_a)]
-        second = rotors[1][foo(first, rotor2_a)]
-        third = rotors[2][foo(second, rotor3_a)]
+        stage1 = rotors[0][fix_offset(val, rotor1_first_position)]
+        stage2 = rotors[1][fix_offset(stage1, rotor2_first_position)]
+        stage3 = rotors[2][fix_offset(stage2, rotor3_first_position)]
         # after reflector:
-        rv_third = reflector(rotors[2], rotor3_a, ref_pairs(reflector_pairs, third))
-        rv_second = reflector(rotors[1], rotor2_a, ref_pairs(reflector_pairs, rv_third))
-        rv_first = reflector(rotors[0], rotor1_a, ref_pairs(reflector_pairs, rv_second))
-        new_text.append(rv_first)
-        rotor3_a += 1
-        if rotor3_a == 26:
-            rotor3_a = 0
-            rotor2_a += 1
-        if rotor2_a == 26:
-            rotor2_a = 0
-            rotor1_a += 1
-        if rotor1_a == 26:
-            rotor1_a = 0
-
+        stage4 = reflector(rotors[2], rotor3_first_position, find_pair(reflector_pairs, stage3))
+        stage5 = reflector(rotors[1], rotor2_first_position, find_pair(reflector_pairs, stage4))
+        stage6 = reflector(rotors[0], rotor1_first_position, find_pair(reflector_pairs, stage5))
+        new_text.append(stage6)
+        # rotors movements
+        rotor3_first_position += 1
+        if rotor3_first_position == 26:
+            rotor3_first_position = 0
+            rotor2_first_position += 1
+        if rotor2_first_position == 26:
+            rotor2_first_position = 0
+            rotor1_first_position += 1
+        if rotor1_first_position == 26:
+            rotor1_first_position = 0
     return ''.join(new_text)
 
 
 def get_cables_from_canvas(canvas):
-    uppers = [i[0] for i in canvas_lines]
-    lowers = [i[1] for i in canvas_lines]
+    upper_buttons_indexes = [i[0] for i in canvas_lines]
+    lower_buttons_indexes = [i[1] for i in canvas_lines]
     offset = 16
     if len(canvas_lines) < 6:
         for i in range(6 - len(canvas_lines)):
             while True:
                 upper_button_index = random.randint(0, 25)
-                if (upper_button_index not in uppers) and (upper_button_index not in lowers):
+                if (upper_button_index not in upper_buttons_indexes) and (upper_button_index not in lower_buttons_indexes):
                     break
             while True:
                 lower_button_index = random.randint(0, 25)
-                if (lower_button_index not in lowers) and (lower_button_index not in uppers) \
+                if (lower_button_index not in lower_buttons_indexes) and (lower_button_index not in upper_buttons_indexes)\
                         and (lower_button_index != upper_button_index):
                     break
-            uppers.append(upper_button_index)
-            lowers.append(lower_button_index)
+            upper_buttons_indexes.append(upper_button_index)
+            lower_buttons_indexes.append(lower_button_index)
             line = canvas.create_line(upper_button_index * 700/26 + offset, 2, lower_button_index * 700/26 + offset, 78)
             canvas_lines.append([upper_button_index, lower_button_index, line])
     disable_buttons()
-    return [(chr(97+i[0]),chr(97+i[1])) for i in canvas_lines]
+    return [(chr(97+i[0]), chr(97+i[1])) for i in canvas_lines]
 
 
 def disable_buttons():
@@ -109,15 +116,14 @@ def before_encrypt(textbox, encrypted_text, rotors, letters, canvas):
     rotors_order = [int(rotors[0].get()), int(rotors[1].get()), int(rotors[2].get())]
     cables = get_cables_from_canvas(canvas)
     settings = [first_position, rotors_order, cables]
-    text = textbox.get('1.0', END)
+    text = textbox.get('1.0', END).lower()
     new_text = ''
-    text = text.lower()
-    for i in text:
-        if (ord(i) >= ord('a')) and (ord(i) <= ord('z')):
-            new_text += i
+    for letter in text:
+        if (ord(letter) >= ord('a')) and (ord(letter) <= ord('z')):
+            new_text += letter
     if new_text.isspace() is False:
         encrypted_text.config(state='normal')
-        encrypted_text.delete(1.0, 'end')
+        encrypted_text.delete(1.0, END)
         encrypted_text.insert(1.0, encrypt(settings, new_text))
         encrypted_text.config(state='disabled')
 
@@ -161,30 +167,30 @@ def button_press(row_button_index, row, canvas):
             to_delete = []
             same_line = False
             if row == 0:
-                for can_line in canvas_lines:
-                    if second_row_button_index == can_line[1] and row_button_index == can_line[0]:
-                        to_delete.append(can_line)
+                for canvas_line in canvas_lines:
+                    if second_row_button_index == canvas_line[1] and row_button_index == canvas_line[0]:
+                        to_delete.append(canvas_line)
                         same_line = True
                     else:
-                        if row_button_index == can_line[0]:
-                            to_delete.append(can_line)
-                        if second_row_button_index == can_line[1]:
-                            to_delete.append(can_line)
+                        if row_button_index == canvas_line[0]:
+                            to_delete.append(canvas_line)
+                        if second_row_button_index == canvas_line[1]:
+                            to_delete.append(canvas_line)
                 upper_button_index, lower_button_index = row_button_index, second_row_button_index
             else:
-                for can_line in canvas_lines:
-                    if row_button_index == can_line[1] and second_row_button_index == can_line[0]:
-                        to_delete.append(can_line)
+                for canvas_line in canvas_lines:
+                    if row_button_index == canvas_line[1] and second_row_button_index == canvas_line[0]:
+                        to_delete.append(canvas_line)
                         same_line = True
                     else:
-                        if row_button_index == can_line[1]:
-                            to_delete.append(can_line)
-                        if second_row_button_index == can_line[0]:
-                            to_delete.append(can_line)
+                        if row_button_index == canvas_line[1]:
+                            to_delete.append(canvas_line)
+                        if second_row_button_index == canvas_line[0]:
+                            to_delete.append(canvas_line)
                 upper_button_index, lower_button_index = second_row_button_index, row_button_index
-            for can_line_to_delete in to_delete:
-                canvas_lines.remove(can_line_to_delete)
-                canvas.delete(can_line_to_delete[2])
+            for canvas_line_to_delete in to_delete:
+                canvas_lines.remove(canvas_line_to_delete)
+                canvas.delete(canvas_line_to_delete[2])
             if same_line is False:
                 line = canvas.create_line(upper_button_index*700/26 + offset, 2, lower_button_index*700/26 + offset, 78)
                 canvas_lines.append([upper_button_index, lower_button_index, line])
@@ -235,16 +241,17 @@ def main():
     Label(settings_frame, text='Cables (must be 6):', font=font1).grid(row=4, sticky='W')
     frame4 = Frame(settings_frame)
     frame5 = Frame(settings_frame)
-    for i in letters_list:
-        index = ord(i) - 97
-        letters_buttons1.append(Button(frame4, text=i, command=(lambda x:
-                                                                lambda: button_press(x, 0, canvas))(index)))
+    for letter in letters_list:
+        index = ord(letter) - 97
+        letters_buttons1.append(Button(frame4, text=letter, command=(lambda x:
+                                                                     lambda: button_press(x, 0, canvas))(index)))
         letters_buttons1[index].grid(row=0, column=index, padx=5)
 
     canvas = Canvas(settings_frame, width=700, height=80, bg='white')
-    for i in letters_list:
-        index = ord(i) - 97
-        letters_buttons2.append(Button(frame5, text=i, command=(lambda x: lambda: button_press(x, 1, canvas))(index)))
+    for letter in letters_list:
+        index = ord(letter) - 97
+        letters_buttons2.append(Button(frame5, text=letter, command=(lambda x:
+                                                                     lambda: button_press(x, 1, canvas))(index)))
         letters_buttons2[index].grid(row=0, column=index, padx=5)
     frame4.grid(row=5, padx=5)
     canvas.grid(row=6)
