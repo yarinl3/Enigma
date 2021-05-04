@@ -7,4 +7,4 @@ def test_fix_offset():
 
 def test_encrypt():
     settings = ['par', [3, 1, 2], [('a', 'g'), ('l', 's'), ('d', 'm'), ('n', 'q'), ('w', 'u'), ('z', 'c')]]
-    assert encrypt(settings, 'yarin levi') == 'ictbnujmg'
+    assert encrypt(settings, 'yarinlevi') == 'ictbnujmg'
