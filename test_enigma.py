@@ -1,9 +1,8 @@
-import enigma
+from enigma import *
 
 
 def test_fix_offset():
-    test = enigma.fix_offset('c', 4)
-    assert test == 6
+    assert fix_offset('c', 4) == 6
 
 
 def test_encrypt():
