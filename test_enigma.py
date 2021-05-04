@@ -11,3 +11,4 @@ def test_encrypt():
     assert encrypt(settings, '') == ''
     assert encrypt(settings, '   ') == ''
     assert encrypt(settings, '\n') == ''
+    assert encrypt(settings, 'yarin levi') == 'ictbnujmg'
