@@ -21,13 +21,15 @@ def fix_offset(letter, first_position):
     new_position = ord(letter) - 97 + first_position
     if new_position > 25:
         new_position -= 26
+    if new_position < 0:
+        new_position += 26
     return new_position
 
 
-def reflector(rotor, first_position, letter):
-    new_position = rotor.index(letter) + first_position
-    if new_position > 25:
-        new_position -= 26
+def reverse_rotor(rotor, letter, first_position):
+    new_position = rotor.index(letter) + first_position * (-1)
+    if new_position < 0:
+        new_position += 26
     return chr(new_position + 97)
 
 
@@ -39,13 +41,15 @@ def find_pair(pairs, char):
             return pair[0]
 
 
-def encrypt(settings, text):
-    new_text = []
+def encrypt(settings, text, encode_or_decode):
+    new_text = ''
     first_position, rotors_order, cables = settings
-    for cable in cables:
-        text = text.replace(cable[0], '*')
-        text = text.replace(cable[1], cable[0])
-        text = text.replace('*', cable[1])
+    if encode_or_decode == 1:
+        for cable in cables:
+            text = text.replace(cable[0], '*')
+            text = text.replace(cable[1], cable[0])
+            text = text.replace('*', cable[1])
+
     first_position = first_position.lower()
     rotor1, rotor2, rotor3, reflector_pairs = get_defaults()
     rotors = [rotor1, rotor2, rotor3]
@@ -53,15 +57,19 @@ def encrypt(settings, text):
     rotor1_first_position = ord(first_position[0]) - 97
     rotor2_first_position = ord(first_position[1]) - 97
     rotor3_first_position = ord(first_position[2]) - 97
+
     for inx, val in enumerate(text):
         stage1 = rotors[0][fix_offset(val, rotor1_first_position)]
         stage2 = rotors[1][fix_offset(stage1, rotor2_first_position)]
         stage3 = rotors[2][fix_offset(stage2, rotor3_first_position)]
-        # after reflector:
-        stage4 = reflector(rotors[2], rotor3_first_position, find_pair(reflector_pairs, stage3))
-        stage5 = reflector(rotors[1], rotor2_first_position, find_pair(reflector_pairs, stage4))
-        stage6 = reflector(rotors[0], rotor1_first_position, find_pair(reflector_pairs, stage5))
-        new_text.append(stage6)
+        stage4 = chr(fix_offset(stage3, rotor3_first_position * (-1)) + 97)
+        stage5 = find_pair(reflector_pairs, stage4)
+        stage6 = chr(fix_offset(stage5, rotor3_first_position) + 97)
+        stage7 = reverse_rotor(rotors[2], stage6, rotor3_first_position)
+        stage8 = reverse_rotor(rotors[1], stage7, rotor2_first_position)
+        stage9 = reverse_rotor(rotors[0], stage8, rotor1_first_position)
+        new_text += stage9
+        print(val, stage1, stage2, stage3, stage4, stage5, stage6, stage7, stage8, stage9)
         # rotors movements
         rotor3_first_position += 1
         if rotor3_first_position == 26:
@@ -72,7 +80,12 @@ def encrypt(settings, text):
             rotor1_first_position += 1
         if rotor1_first_position == 26:
             rotor1_first_position = 0
-    return ''.join(new_text)
+    if encode_or_decode == 2:
+        for cable in cables:
+            new_text = new_text.replace(cable[0], '*')
+            new_text = new_text.replace(cable[1], cable[0])
+            new_text = new_text.replace('*', cable[1])
+    return new_text
 
 
 def get_cables_from_canvas(canvas):
@@ -111,30 +124,39 @@ def disable_buttons():
             letters_buttons1[index].config(state='disable')
 
 
-def before_encrypt(textbox, encrypted_text, rotors, letters, canvas):
+def before_encrypt(decrypted_textbox, encrypted_textbox, rotors, letters, canvas, radio):
     first_position = letters[0].get() + letters[1].get() + letters[2].get()
     rotors_order = [int(rotors[0].get()), int(rotors[1].get()), int(rotors[2].get())]
     cables = get_cables_from_canvas(canvas)
     settings = [first_position, rotors_order, cables]
-    text = textbox.get('1.0', END).lower()
-    new_text = ''
-    for letter in text:
+    decrypted_text = decrypted_textbox.get('1.0', END).lower()
+    encrypted_text = encrypted_textbox.get('1.0', END).lower()
+
+    new_decrypted_text = ''
+    for letter in decrypted_text:
         if (ord(letter) >= ord('a')) and (ord(letter) <= ord('z')):
-            new_text += letter
-    if new_text.isspace() is False:
-        encrypted_text.config(state='normal')
-        encrypted_text.delete(1.0, END)
-        encrypted_text.insert(1.0, encrypt(settings, new_text))
-        encrypted_text.config(state='disabled')
+            new_decrypted_text += letter
+    new_encrypted_text = ''
+    for letter in encrypted_text:
+        if (ord(letter) >= ord('a')) and (ord(letter) <= ord('z')):
+            new_encrypted_text += letter
+
+    if len(new_decrypted_text) != 0 and radio.get() == '1':
+        encrypted_textbox.delete(1.0, END)
+        encrypted_textbox.insert(1.0, encrypt(settings, new_decrypted_text, 1))
+
+    if len(new_encrypted_text) != 0 and radio.get() == '2':
+        decrypted_textbox.delete(1.0, END)
+        decrypted_textbox.insert(1.0, encrypt(settings, new_encrypted_text, 2))
 
 
-def grid_all(button1, button2, rotors, text1, text2, frame2, letters, frame3, root_frame, settings_frame, settings, canvas):
+def grid_all(button1, button2, rotors, text1, text2, frame2, letters, frame3, root_frame, settings_frame, settings, canvas, radio):
     text1.grid(row=2, pady=5)
-    button1.grid(row=3, pady=5)
-    button1.config(command=lambda: before_encrypt(text1, text2, rotors, letters, canvas))
-    text2.grid(row=5, pady=5)
+    button1.config(command=lambda: before_encrypt(text1, text2, rotors, letters, canvas, radio))
+    button1.grid(row=4)
+    text2.grid(row=6, pady=5)
     button2.config(command=lambda: settings.deiconify())
-    button2.grid(row=6, pady=5)
+    button2.grid(row=7, pady=5)
     root_frame.grid()
     ################
     for i in range(3):
@@ -204,6 +226,15 @@ def button_press(row_button_index, row, canvas):
         row_button.config(relief='raised')
 
 
+def change(button, text1, text2, rotors, letters, canvas, radio):
+    if radio.get() == '2':
+        button['text'] = 'Decrypt'
+        button['command'] = lambda: before_encrypt(text1, text2, rotors, letters, canvas, radio)
+    else:
+        button['text'] = 'Encrypt'
+        button['command'] = lambda: before_encrypt(text1, text2, rotors, letters, canvas, radio)
+
+
 def main():
     font1 = ('Arial', 18)
     font2 = ('Arial', 30)
@@ -212,12 +243,20 @@ def main():
     root.wm_title('Enigma')
     root_frame = Frame(root)
     Label(root_frame, text='Enigma', font=font2).grid(row=0, pady=5)
-    Label(root_frame, text='Text to encrypt (English letters only):', font=font1).grid(row=1, sticky='W')
+    Label(root_frame, text='Text before encrypt (English letters only):', font=font1).grid(row=1, sticky='W')
     text1 = Text(root_frame, height=10, width=40)
-    button1 = Button(root_frame, text='encrypt', font=font3)
-    Label(root_frame, text='Encrypted text:', font=font1).grid(row=4, sticky='W')
-    text2 = Text(root_frame, height=10, width=40, state='disabled')
+    encrypt_frame = Frame(root_frame)
+    radio = StringVar()
+    radio.set(1)
+    encrypt_radio = Radiobutton(encrypt_frame, text="Encrypt", command=lambda: change(button1, text1, text2, rotors, letters, canvas, radio), variable=radio, value=1)
+    encrypt_radio.grid(row=0, pady=5)
+    decrypt_radio = Radiobutton(encrypt_frame, text="Decrypt", command=lambda: change(button1, text1, text2, rotors, letters, canvas, radio), variable=radio, value=2)
+    decrypt_radio.grid(row=1,pady=5)
+    button1 = Button(root_frame, text='Encrypt', font=font3)
+    Label(root_frame, text='Encrypted text:', font=font1).grid(row=5, sticky='W')
+    text2 = Text(root_frame, height=10, width=40)
     button2 = Button(root_frame, text='Settings')
+    encrypt_frame.grid(row=4, column=0, sticky='W')
     ###############################
     settings = Toplevel(root)
     settings.wm_title('settings')
@@ -256,7 +295,7 @@ def main():
     frame4.grid(row=5, padx=5)
     canvas.grid(row=6)
     frame5.grid(row=7, padx=5)
-    grid_all(button1, button2, rotors, text1, text2, frame2, letters, frame3, root_frame, settings_frame, settings, canvas)
+    grid_all(button1, button2, rotors, text1, text2, frame2, letters, frame3, root_frame, settings_frame, settings, canvas, radio)
     root.mainloop()
 
 
