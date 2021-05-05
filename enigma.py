@@ -69,7 +69,6 @@ def encrypt(settings, text, encode_or_decode):
         stage8 = reverse_rotor(rotors[1], stage7, rotor2_first_position)
         stage9 = reverse_rotor(rotors[0], stage8, rotor1_first_position)
         new_text += stage9
-        print(val, stage1, stage2, stage3, stage4, stage5, stage6, stage7, stage8, stage9)
         # rotors movements
         rotor3_first_position += 1
         if rotor3_first_position == 26:
